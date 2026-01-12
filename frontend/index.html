@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Task 1C – Team Management</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 30px;
+    }
+    input {
+      margin: 5px;
+      padding: 5px;
+    }
+    button {
+      padding: 5px 10px;
+      margin: 2px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: center;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+  </style>
+</head>
+<body>
+
+<h2>Add / Update Team</h2>
+
+<input id="teamName" placeholder="Team Name">
+<input id="project" placeholder="Project">
+<input id="members" type="number" placeholder="Members">
+<input id="email" placeholder="Email">
+
+<br><br>
+<button onclick="addTeam()">Add</button>
+<button onclick="updateTeam()">Update</button>
+
+<hr>
+
+<h2>Teams List</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Team Name</th>
+      <th>Project</th>
+      <th>Members</th>
+      <th>Email</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody id="teamTable"></tbody>
+</table>
+
+<script>
+const API = "http://localhost:5000/api/teams";
+let selectedId = null;
+
+
+function isValidEmail(email) {
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailPattern.test(email);
+  
+}
+
+
+function clearForm() {
+  teamName.value = "";
+  project.value = "";
+  members.value = "";
+  email.value = "";
+  selectedId = null;
+}
+
+
+function addTeam() {
+  
+  if (
+    !teamName.value ||
+    !project.value ||
+    !members.value ||
+    !email.value
+  ) {
+    alert("All fields are required");
+    return;
+  }
+
+  
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailPattern.test(email.value)) {
+    alert("Please enter a valid email address");
+    return;
+  }
+
+  fetch(API, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      teamName: teamName.value,
+      project: project.value,
+      members: members.value,
+      email: email.value
+    })
+  })
+  .then(async res => {
+    const data = await res.json();
+
+    
+    if (!res.ok) {
+      alert(data.message || data.error || "Failed to add team");
+      return;
+    }
+
+    
+    clearForm();
+    loadTeams();
+  })
+  .catch(err => {
+    alert("Network error");
+    console.error(err);
+  });
+}
+
+
+
+
+function loadTeams() {
+  fetch(API)
+    .then(res => res.json())
+    .then(data => {
+      teamTable.innerHTML = "";
+      data.forEach(t => {
+        teamTable.innerHTML += `
+          <tr>
+            <td>${t.teamName}</td>
+            <td>${t.project}</td>
+            <td>${t.members}</td>
+            <td>${t.email}</td>
+            <td>
+              <button onclick="editTeam('${t._id}','${t.teamName}','${t.project}',${t.members},'${t.email}')">Edit</button>
+              <button onclick="deleteTeam('${t._id}')">Delete</button>
+            </td>
+          </tr>
+        `;
+      });
+    });
+}
+
+
+function editTeam(id, name, proj, mem, mail) {
+  selectedId = id;
+  teamName.value = name;
+  project.value = proj;
+  members.value = mem;
+  email.value = mail;
+}
+
+
+function updateTeam() {
+  if (!selectedId) {
+    alert("Select a team to update");
+    return;
+  }
+
+  if (
+    !teamName.value ||
+    !project.value ||
+    !members.value ||
+    !email.value
+  ) {
+    alert("All fields are required");
+    return;
+  }
+
+  fetch(`${API}/${selectedId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      teamName: teamName.value,
+      project: project.value,
+      members: members.value,
+      email: email.value
+    })
+  })
+  .then(async res => {
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.message || data.error || "Update failed");
+      return;
+    }
+
+    clearForm();
+    loadTeams();
+  });
+}
+
+
+
+function deleteTeam(id) {
+  if (!confirm("Are you sure you want to delete this team?")) return;
+
+  fetch(`${API}/${id}`, { method: "DELETE" })
+    .then(loadTeams);
+}
+
+
+loadTeams();
+</script>
