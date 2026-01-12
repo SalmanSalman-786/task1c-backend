@@ -43,10 +43,31 @@ exports.getTeams = async (req, res) => {
 
 exports.updateTeam = async (req, res) => {
   try {
+    const { teamName, project, members, email } = req.body;
+
+    // ✅ All fields required (same as create)
+    if (!teamName || !project || !members || !email) {
+      return res.status(400).json({
+        message: "All fields are required"
+      });
+    }
+
+    // ✅ Check if email exists for another team
+    const existingTeam = await Team.findOne({
+      email,
+      _id: { $ne: req.params.id } // exclude current record
+    });
+
+    if (existingTeam) {
+      return res.status(409).json({
+        message: "Email already exists"
+      });
+    }
+
     const team = await Team.findByIdAndUpdate(
       req.params.id,
-      req.body,
-      { new: true }
+      { teamName, project, members, email },
+      { new: true, runValidators: true }
     );
 
     if (!team) {
@@ -54,7 +75,16 @@ exports.updateTeam = async (req, res) => {
     }
 
     res.status(200).json(team);
+
   } catch (err) {
+
+    // ✅ Backup protection for MongoDB unique error
+    if (err.code === 11000) {
+      return res.status(409).json({
+        message: "Email already exists"
+      });
+    }
+
     res.status(400).json({ error: err.message });
   }
 };
